@@ -12,19 +12,18 @@ hours. All ids are opaque strings; all dates use `YYYY-MM-DD`.
 
 The MCP server (a Docker container started automatically by this plugin) talks to
 the Workhours API at `http://localhost:8001`. If tool calls return a connection
-error, the API isn't running — offer the user this one-time setup (prebuilt
-images, nothing to clone or build):
+error, the API isn't running — offer the user the one-command installer (needs
+Docker; pulls prebuilt images, starts MongoDB + API, restarts on boot):
 
 ```bash
-docker network create workhours 2>/dev/null || true
-docker run -d --name workhours-mongo --network workhours \
-  -v workhours_mongo:/data/db mongo:7
-docker run -d --name workhours-api --network workhours -p 8001:8000 \
-  -e MONGO_URL=mongodb://workhours-mongo:27017 \
-  ghcr.io/gifflet/workhours-calendar-api:latest
+# Linux / macOS / Raspberry Pi
+curl -fsSL https://raw.githubusercontent.com/gifflet/workhours-calendar/main/install.sh | sh
 ```
 
-On later sessions, `docker start workhours-mongo workhours-api` brings it back.
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/gifflet/workhours-calendar/main/install.ps1 | iex
+```
 
 ## Data model
 

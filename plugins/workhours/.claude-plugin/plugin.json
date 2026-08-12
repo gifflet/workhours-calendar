@@ -1,7 +1,7 @@
 {
   "name": "workhours",
   "description": "Track worked hours by client, project and task straight from Claude Code. Ships the workhours MCP server (Docker image, no build needed) and a skill teaching the model how to use it.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "gifflet"
   },

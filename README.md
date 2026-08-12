@@ -1,87 +1,63 @@
 # Workhours Calendar
 
-A small REST API to track worked hours by **client → project → task**, backed by
-MongoDB. At the end of the month you can see how many hours went into a project
-or client, how long a task took, and which tasks were worked on a given day.
+Track worked hours by **client → project → task**. At the end of the month,
+see how many hours went into each project or client, how long a task took, and
+what was worked on any given day — via REST API, Swagger UI, or by just asking
+Claude (MCP server + Claude Code plugin included).
 
-Ships with:
+## Install
 
-- **FastAPI** app with interactive Swagger docs
-- **MongoDB** persistence (local or via Docker)
-- **MCP server** so AI assistants (Claude Code) can operate the API
-- **Claude Code plugin** bundling the MCP server (prebuilt Docker image) and a
-  skill teaching the model how to use it — install with two commands, no clone
-  or build required
+The only requirement is [Docker](https://docs.docker.com/get-docker/).
 
-## Quick start (Docker)
+**Linux / macOS / Raspberry Pi:**
 
 ```bash
-docker compose up --build
+curl -fsSL https://raw.githubusercontent.com/gifflet/workhours-calendar/main/install.sh | sh
 ```
 
-- API: http://localhost:8001
-- Swagger UI: http://localhost:8001/docs
-- MongoDB: internal to the compose network only (volume-persisted); the API
-  reaches it by service name. To access it from the host, uncomment the
-  `ports` mapping in `docker-compose.yaml`.
+**Windows (PowerShell):**
 
-## Quick start (prebuilt images — no build required)
-
-Every push to `main` publishes multi-arch images to GitHub Container Registry
-(`linux/amd64`, `linux/arm64`, `linux/arm/v7` — Intel/AMD Linux, Apple Silicon
-and Raspberry Pi 3+ are all covered):
-
-```bash
-docker run -d --name workhours-api -p 8001:8000 \
-  -e MONGO_URL=mongodb://host.docker.internal:27017 \
-  --add-host host.docker.internal:host-gateway \
-  ghcr.io/gifflet/workhours-calendar-api:latest
+```powershell
+irm https://raw.githubusercontent.com/gifflet/workhours-calendar/main/install.ps1 | iex
 ```
 
-Or with compose, pointing `api` at the published image instead of `build`:
+The script pulls the prebuilt multi-arch images (`amd64`, `arm64`, `arm/v7`),
+starts MongoDB and the API, and waits until everything is healthy:
 
-```yaml
-services:
-  mongodb:
-    image: mongo:7
-    volumes: [mongo_data:/data/db]
-  api:
-    image: ghcr.io/gifflet/workhours-calendar-api:latest
-    ports: ["8001:8000"]
-    environment:
-      MONGO_URL: mongodb://mongodb:27017
-    depends_on: [mongodb]
-volumes:
-  mongo_data:
+- **API**: http://localhost:8001 — **Swagger UI**: http://localhost:8001/docs
+- Data persists in the `workhours_mongo` volume; containers restart with Docker on boot
+- Re-run the script anytime to update (data is kept)
+- `WORKHOURS_PORT` changes the API port; `MONGO_URL` points to an external
+  MongoDB (required on 32-bit ARM). Raspberry Pi 3/4 automatically get
+  `mongo:4.4`, since MongoDB 5+ needs ARMv8.2-A.
+
+Uninstall: `docker rm -f workhours-api workhours-mongo && docker volume rm workhours_mongo`
+
+## Use with Claude Code
+
+Install the plugin once (user scope — available in every project):
+
+```shell
+/plugin marketplace add gifflet/workhours-calendar
+/plugin install workhours@workhours-calendar
 ```
 
-> **Raspberry Pi 3/4 note:** MongoDB 5+ requires the ARMv8.2-A
-> microarchitecture, which the Pi 3/4 CPUs lack, and there is no official
-> 32-bit image. On a Pi, run the API image locally but point `MONGO_URL` at a
-> MongoDB hosted elsewhere (or use `mongo:4.4` on a 64-bit Pi OS).
+Then just ask in natural language:
 
-## Quick start (local Python)
+> "Log 2.5 hours today on the CI pipeline task of ACME's ERP project"
+>
+> "How many hours did I work for ACME in August?"
+>
+> "Which tasks did I work on yesterday?"
 
-Requires Python 3.11+ and a MongoDB instance on `localhost:27017` — e.g.
-`docker compose up mongodb` after uncommenting the `ports` mapping in
-`docker-compose.yaml` (the API running on the host needs the published port).
+The plugin bundles the MCP server (prebuilt Docker image — nothing to clone or
+build) and a skill that teaches the model the workflows: resolve names to ids,
+create missing clients/projects/tasks on demand, and answer report questions
+with a single tool call. Source: [`plugins/workhours`](plugins/workhours).
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --reload --port 8001
-```
+## API
 
-Environment variables:
-
-| Variable | Default | Description |
-|---|---|---|
-| `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
-| `MONGO_DB` | `workhours` | Database name |
-
-## API overview
-
-Full interactive documentation lives at `/docs` (Swagger UI) and `/redoc`.
+Interactive docs at [`/docs`](http://localhost:8001/docs) (Swagger UI) and `/redoc`.
 
 | Resource | Endpoints |
 |---|---|
@@ -92,22 +68,15 @@ Full interactive documentation lives at `/docs` (Swagger UI) and `/redoc`.
 | Reports | `GET /reports/monthly`, `GET /reports/daily`, `GET /reports/task/{task_id}` |
 | Health | `GET /health` (includes MongoDB status) |
 
-Notes:
-
 - Dates use `YYYY-MM-DD`; hours are decimal (`1.5` = 1h30).
 - A time entry needs a `task_id` **or** a `project_id`; client and project are
   denormalized into the entry automatically for fast reporting.
-- Deletes are guarded: you cannot delete a client/project/task that still has
-  children or time entries (HTTP 409).
-
-### Report examples
+- Deletes are guarded: a client/project/task with children or time entries
+  can't be deleted (HTTP 409).
 
 ```bash
 # Hours in August 2026, broken down by client, project, task and day
 curl "http://localhost:8001/reports/monthly?year=2026&month=8"
-
-# Same month, one client only
-curl "http://localhost:8001/reports/monthly?year=2026&month=8&client_id=<id>"
 
 # What was worked on a specific day
 curl "http://localhost:8001/reports/daily?date=2026-08-12"
@@ -116,93 +85,11 @@ curl "http://localhost:8001/reports/daily?date=2026-08-12"
 curl "http://localhost:8001/reports/task/<task_id>"
 ```
 
-## Claude Code plugin (recommended)
+## Other MCP clients
 
-The easiest way to use this from Claude Code. The plugin ships the MCP server
-(as the prebuilt `ghcr.io/gifflet/workhours-calendar-mcp` image — Docker is the
-only requirement) plus a skill that teaches the model the workflows. It is
-installed at **user scope**, so it works in every project, not just this repo.
-
-Inside Claude Code:
-
-```shell
-/plugin marketplace add gifflet/workhours-calendar
-/plugin install workhours@workhours-calendar
-```
-
-Or from the terminal:
-
-```bash
-claude plugin marketplace add gifflet/workhours-calendar
-claude plugin install workhours@workhours-calendar
-```
-
-The MCP tools need the API running at `http://localhost:8001`. One-time setup
-with prebuilt images (no clone, no build):
-
-```bash
-docker network create workhours 2>/dev/null || true
-docker run -d --name workhours-mongo --network workhours \
-  -v workhours_mongo:/data/db mongo:7
-docker run -d --name workhours-api --network workhours -p 8001:8000 \
-  -e MONGO_URL=mongodb://workhours-mongo:27017 \
-  ghcr.io/gifflet/workhours-calendar-api:latest
-```
-
-On later boots: `docker start workhours-mongo workhours-api`. Then just ask
-Claude things like *"log 2h today on the CI pipeline task for ACME"* or *"how
-many hours did I work for ACME this month?"*.
-
-The plugin lives in [`plugins/workhours`](plugins/workhours) and is served by
-the marketplace manifest at `.claude-plugin/marketplace.json`.
-
-## MCP server
-
-The MCP server (`mcp_server/server.py`) exposes the API as tools for AI
-assistants over stdio: `create_client`, `list_clients`, `create_project`,
-`list_projects`, `create_task`, `list_tasks`, `update_task_status`,
-`log_hours`, `list_entries`, `update_entry`, `delete_entry`,
-`monthly_report`, `daily_report` and `task_report`.
-
-If you use Claude Code, prefer the [plugin](#claude-code-plugin-recommended)
-above. The sections below cover manual registration (other MCP clients, or
-developing this repo).
-
-### Install
-
-The server needs the `mcp` and `httpx` packages, already included in
-`requirements.txt`:
-
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-It talks to the API over HTTP, so **the API must be running** (Docker or
-local) before the tools work. The API base URL is configured via the
-`WORKHOURS_API_URL` environment variable (default `http://localhost:8001`).
-
-### Register in Claude Code
-
-The repository ships a project-scoped `.mcp.json`, so opening Claude Code in
-this directory picks the server up automatically (approve it when prompted).
-To register it manually — or from another directory — use:
-
-```bash
-claude mcp add workhours \
-  --env WORKHOURS_API_URL=http://localhost:8001 \
-  -- /absolute/path/to/workhours-calendar/.venv/bin/python \
-     /absolute/path/to/workhours-calendar/mcp_server/server.py
-```
-
-Verify with `claude mcp list` (the server should show as connected) or `/mcp`
-inside a Claude Code session.
-
-### Run via Docker (no Python required)
-
-The MCP server is also published as a prebuilt image
-(`ghcr.io/gifflet/workhours-calendar-mcp`). Since MCP talks over stdio, the
-container must run with `-i`:
+The MCP server exposes 14 tools over stdio (`create_client`, `log_hours`,
+`monthly_report`, `daily_report`, `task_report`, ...). To register it outside
+the Claude Code plugin, run the published image with `-i`:
 
 ```bash
 claude mcp add workhours \
@@ -212,71 +99,41 @@ claude mcp add workhours \
      ghcr.io/gifflet/workhours-calendar-mcp:latest
 ```
 
-`host.docker.internal` lets the container reach the API on your host. On
-macOS/Windows it works out of the box; the `--add-host` flag makes it work on
-Linux too.
+The `WORKHOURS_API_URL` environment variable points the server at the API.
 
-### Use
-
-With the API up and the server registered, just ask Claude in natural language:
-
-> "Log 2.5 hours today on the CI pipeline task of ACME's ERP project"
->
-> "How many hours did I work for ACME in August?"
->
-> "Which tasks did I work on yesterday?"
-
-The **`workhours` skill** (shipped by the plugin at
-`plugins/workhours/skills/workhours/SKILL.md`) teaches the model the workflow:
-resolve names to ids via the `list_*` tools, create missing
-clients/projects/tasks on demand, prefer `task_id` when logging hours, and
-answer report questions with a single
-`monthly_report`/`daily_report`/`task_report` call.
-
-### Test the server standalone
+## Development
 
 ```bash
-# Requires the API running on localhost:8001
+# Everything in containers (builds locally)
+docker compose up --build
+
+# Or API on the host (needs MongoDB on localhost:27017 — uncomment the
+# ports mapping in docker-compose.yaml to publish the mongodb service)
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app.main:app --reload --port 8001
+```
+
+The API reads `MONGO_URL` (default `mongodb://localhost:27017`) and `MONGO_DB`
+(default `workhours`). The repo ships a project-scoped `.mcp.json` that runs
+the MCP server from the local venv. Test it standalone with:
+
+```bash
 npx @modelcontextprotocol/inspector .venv/bin/python mcp_server/server.py
 ```
 
-## CI/CD
-
-`.github/workflows/docker-build.yml` builds and publishes both images on every
-push to `main` (tag `latest`), on version tags `v*` (semver tags), and builds
-without publishing on pull requests. Multi-arch builds use QEMU + Buildx for:
-
-| Platform | Covers |
-|---|---|
-| `linux/amd64` | Linux/Windows on Intel/AMD, Intel Macs |
-| `linux/arm64` | Apple Silicon Macs, Raspberry Pi 3+ (64-bit OS) |
-| `linux/arm/v7` | Raspberry Pi 3+ (32-bit OS) |
-
-Images land at `ghcr.io/gifflet/workhours-calendar-api` and
-`ghcr.io/gifflet/workhours-calendar-mcp`. No secrets to configure — the
-workflow authenticates with the built-in `GITHUB_TOKEN`.
-
-> **First publish:** GHCR packages start private. To allow anonymous
-> `docker pull`, open the package page on GitHub → *Package settings* →
-> *Change visibility* → *Public* (once per image).
-
-## Project layout
+CI (`.github/workflows/docker-build.yml`) builds and publishes
+`ghcr.io/gifflet/workhours-calendar-api` and `...-mcp` for `linux/amd64`,
+`linux/arm64` and `linux/arm/v7` on every push to `main` and on `v*` tags;
+pull requests build without publishing.
 
 ```
-app/
-  main.py            # FastAPI app, Swagger metadata, health check
-  database.py        # MongoDB connection and indexes
-  schemas.py         # Pydantic request models
-  utils.py           # ObjectId helpers, serialization
-  routers/
-    clients.py projects.py tasks.py entries.py reports.py
-mcp_server/
-  server.py          # MCP stdio server calling the API
+app/                 # FastAPI app (routers, schemas, Mongo access)
+mcp_server/          # MCP stdio server calling the API
 plugins/workhours/   # Claude Code plugin (skill + MCP via Docker image)
-.claude-plugin/marketplace.json     # Plugin marketplace manifest
-.mcp.json            # Project-scoped MCP registration (repo development)
-Dockerfile           # API image
-Dockerfile.mcp       # MCP server image
+.claude-plugin/      # Plugin marketplace manifest
+install.sh install.ps1              # One-command installers
+Dockerfile Dockerfile.mcp           # API and MCP server images
 docker-compose.yaml
 .github/workflows/docker-build.yml  # Multi-arch build + publish to GHCR
 ```
