@@ -1,0 +1,10 @@
+{
+  "name": "workhours",
+  "description": "Track worked hours by client, project and task straight from Claude Code. Ships the workhours MCP server (Docker image, no build needed) and a skill teaching the model how to use it.",
+  "version": "1.0.0",
+  "author": {
+    "name": "gifflet"
+  },
+  "homepage": "https://github.com/gifflet/workhours-calendar",
+  "repository": "https://github.com/gifflet/workhours-calendar"
+}

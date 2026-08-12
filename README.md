@@ -9,7 +9,9 @@ Ships with:
 - **FastAPI** app with interactive Swagger docs
 - **MongoDB** persistence (local or via Docker)
 - **MCP server** so AI assistants (Claude Code) can operate the API
-- **Claude Code skill** teaching the model how to use the MCP tools
+- **Claude Code plugin** bundling the MCP server (prebuilt Docker image) and a
+  skill teaching the model how to use it — install with two commands, no clone
+  or build required
 
 ## Quick start (Docker)
 
@@ -114,6 +116,46 @@ curl "http://localhost:8001/reports/daily?date=2026-08-12"
 curl "http://localhost:8001/reports/task/<task_id>"
 ```
 
+## Claude Code plugin (recommended)
+
+The easiest way to use this from Claude Code. The plugin ships the MCP server
+(as the prebuilt `ghcr.io/gifflet/workhours-calendar-mcp` image — Docker is the
+only requirement) plus a skill that teaches the model the workflows. It is
+installed at **user scope**, so it works in every project, not just this repo.
+
+Inside Claude Code:
+
+```shell
+/plugin marketplace add gifflet/workhours-calendar
+/plugin install workhours@workhours-calendar
+```
+
+Or from the terminal:
+
+```bash
+claude plugin marketplace add gifflet/workhours-calendar
+claude plugin install workhours@workhours-calendar
+```
+
+The MCP tools need the API running at `http://localhost:8001`. One-time setup
+with prebuilt images (no clone, no build):
+
+```bash
+docker network create workhours 2>/dev/null || true
+docker run -d --name workhours-mongo --network workhours \
+  -v workhours_mongo:/data/db mongo:7
+docker run -d --name workhours-api --network workhours -p 8001:8000 \
+  -e MONGO_URL=mongodb://workhours-mongo:27017 \
+  ghcr.io/gifflet/workhours-calendar-api:latest
+```
+
+On later boots: `docker start workhours-mongo workhours-api`. Then just ask
+Claude things like *"log 2h today on the CI pipeline task for ACME"* or *"how
+many hours did I work for ACME this month?"*.
+
+The plugin lives in [`plugins/workhours`](plugins/workhours) and is served by
+the marketplace manifest at `.claude-plugin/marketplace.json`.
+
 ## MCP server
 
 The MCP server (`mcp_server/server.py`) exposes the API as tools for AI
@@ -121,6 +163,10 @@ assistants over stdio: `create_client`, `list_clients`, `create_project`,
 `list_projects`, `create_task`, `list_tasks`, `update_task_status`,
 `log_hours`, `list_entries`, `update_entry`, `delete_entry`,
 `monthly_report`, `daily_report` and `task_report`.
+
+If you use Claude Code, prefer the [plugin](#claude-code-plugin-recommended)
+above. The sections below cover manual registration (other MCP clients, or
+developing this repo).
 
 ### Install
 
@@ -180,11 +226,12 @@ With the API up and the server registered, just ask Claude in natural language:
 >
 > "Which tasks did I work on yesterday?"
 
-The **`workhours` skill** (`.claude/skills/workhours/SKILL.md`) is loaded
-automatically in this project and teaches the model the workflow: resolve
-names to ids via the `list_*` tools, create missing clients/projects/tasks on
-demand, prefer `task_id` when logging hours, and answer report questions with
-a single `monthly_report`/`daily_report`/`task_report` call.
+The **`workhours` skill** (shipped by the plugin at
+`plugins/workhours/skills/workhours/SKILL.md`) teaches the model the workflow:
+resolve names to ids via the `list_*` tools, create missing
+clients/projects/tasks on demand, prefer `task_id` when logging hours, and
+answer report questions with a single
+`monthly_report`/`daily_report`/`task_report` call.
 
 ### Test the server standalone
 
@@ -224,9 +271,10 @@ app/
   routers/
     clients.py projects.py tasks.py entries.py reports.py
 mcp_server/
-  server.py          # MCP stdio server (FastMCP) calling the API
-.claude/skills/workhours/SKILL.md   # Claude Code skill
-.mcp.json            # Project-scoped MCP registration
+  server.py          # MCP stdio server calling the API
+plugins/workhours/   # Claude Code plugin (skill + MCP via Docker image)
+.claude-plugin/marketplace.json     # Plugin marketplace manifest
+.mcp.json            # Project-scoped MCP registration (repo development)
 Dockerfile           # API image
 Dockerfile.mcp       # MCP server image
 docker-compose.yaml

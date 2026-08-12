@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "workhours": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--add-host",
+        "host.docker.internal:host-gateway",
+        "-e",
+        "WORKHOURS_API_URL=http://host.docker.internal:8001",
+        "ghcr.io/gifflet/workhours-calendar-mcp:latest"
+      ]
+    }
+  }
+}

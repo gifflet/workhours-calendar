@@ -8,6 +8,24 @@ description: Guides the model on using the "workhours" MCP server to track worke
 The `workhours` MCP server wraps a REST API (FastAPI + MongoDB) that tracks worked
 hours. All ids are opaque strings; all dates use `YYYY-MM-DD`.
 
+## Prerequisites
+
+The MCP server (a Docker container started automatically by this plugin) talks to
+the Workhours API at `http://localhost:8001`. If tool calls return a connection
+error, the API isn't running — offer the user this one-time setup (prebuilt
+images, nothing to clone or build):
+
+```bash
+docker network create workhours 2>/dev/null || true
+docker run -d --name workhours-mongo --network workhours \
+  -v workhours_mongo:/data/db mongo:7
+docker run -d --name workhours-api --network workhours -p 8001:8000 \
+  -e MONGO_URL=mongodb://workhours-mongo:27017 \
+  ghcr.io/gifflet/workhours-calendar-api:latest
+```
+
+On later sessions, `docker start workhours-mongo workhours-api` brings it back.
+
 ## Data model
 
 ```
@@ -33,8 +51,8 @@ entries logged with a `task_id`.
 4. **Dates:** convert natural language ("today", "yesterday", "last Friday")
    to `YYYY-MM-DD` before calling tools. Hours are decimal (1h30 → 1.5).
 5. **Errors:** tool results with an `"error"` key are API failures, not tool
-   bugs. If the message says the API is unreachable, tell the user to start it
-   (`docker compose up` or `uvicorn app.main:app --port 8001`) instead of retrying.
+   bugs. If the message says the API is unreachable, walk the user through the
+   Prerequisites section above instead of retrying.
 
 ## Which tool for which question
 

@@ -1,0 +1,14 @@
+{
+  "name": "workhours-calendar",
+  "description": "Plugins for the Workhours Calendar time-tracking API: log and report worked hours by client, project and task from Claude Code",
+  "owner": {
+    "name": "gifflet"
+  },
+  "plugins": [
+    {
+      "name": "workhours",
+      "source": "./plugins/workhours",
+      "description": "Track worked hours by client, project and task via the Workhours Calendar API (MCP tools + guidance skill)"
+    }
+  ]
+}
