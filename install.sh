@@ -52,7 +52,10 @@ docker network inspect "$NETWORK" >/dev/null 2>&1 \
 if [ -z "${MONGO_URL:-}" ]; then
   MONGO_URL="mongodb://workhours-mongo:27017"
   docker pull "$MONGO_IMAGE"
-  docker rm -f workhours-mongo >/dev/null 2>&1 || true
+  # Stop gracefully (SIGTERM) so mongod flushes to disk; data lives in the
+  # workhours_mongo volume and survives container replacement.
+  docker stop workhours-mongo >/dev/null 2>&1 || true
+  docker rm workhours-mongo >/dev/null 2>&1 || true
   docker run -d --name workhours-mongo --network "$NETWORK" \
     --restart unless-stopped -v workhours_mongo:/data/db "$MONGO_IMAGE" >/dev/null
 fi

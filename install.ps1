@@ -42,7 +42,10 @@ $MongoUrl = $env:MONGO_URL
 if (-not $MongoUrl) {
     $MongoUrl = "mongodb://workhours-mongo:27017"
     docker pull $MongoImage
-    docker rm -f workhours-mongo *> $null
+    # Stop gracefully (SIGTERM) so mongod flushes to disk; data lives in the
+    # workhours_mongo volume and survives container replacement.
+    docker stop workhours-mongo *> $null
+    docker rm workhours-mongo *> $null
     docker run -d --name workhours-mongo --network $Network `
         --restart unless-stopped -v workhours_mongo:/data/db $MongoImage | Out-Null
 }
