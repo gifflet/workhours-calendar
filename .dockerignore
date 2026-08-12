@@ -3,5 +3,4 @@ __pycache__
 *.pyc
 .claude
 .mcp.json
-mcp_server
 README.md
