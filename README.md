@@ -19,7 +19,9 @@ docker compose up --build
 
 - API: http://localhost:8001
 - Swagger UI: http://localhost:8001/docs
-- MongoDB: localhost:27017 (volume-persisted)
+- MongoDB: internal to the compose network only (volume-persisted); the API
+  reaches it by service name. To access it from the host, uncomment the
+  `ports` mapping in `docker-compose.yaml`.
 
 ## Quick start (prebuilt images — no build required)
 
@@ -40,7 +42,6 @@ Or with compose, pointing `api` at the published image instead of `build`:
 services:
   mongodb:
     image: mongo:7
-    ports: ["27017:27017"]
     volumes: [mongo_data:/data/db]
   api:
     image: ghcr.io/gifflet/workhours-calendar-api:latest
@@ -59,8 +60,9 @@ volumes:
 
 ## Quick start (local Python)
 
-Requires Python 3.11+ and a MongoDB instance on `localhost:27017`
-(e.g. `docker compose up mongodb`).
+Requires Python 3.11+ and a MongoDB instance on `localhost:27017` — e.g.
+`docker compose up mongodb` after uncommenting the `ports` mapping in
+`docker-compose.yaml` (the API running on the host needs the published port).
 
 ```bash
 python3 -m venv .venv

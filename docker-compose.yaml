@@ -1,8 +1,11 @@
 services:
   mongodb:
     image: mongo:7
-    ports:
-      - "27017:27017"
+    # Not published to the host on purpose: only containers on this compose
+    # network (the api) can reach it. For host access (mongosh, Compass,
+    # running uvicorn locally), uncomment:
+    # ports:
+    #   - "27017:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
