@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, HTTPException
 
 from app import database as db
@@ -14,8 +16,11 @@ def create_client(payload: ClientIn):
 
 
 @router.get("")
-def list_clients():
-    return [serialize(doc) for doc in db.clients.find().sort("name")]
+def list_clients(organization: str | None = None):
+    query: dict = {}
+    if organization:
+        query["organization"] = {"$regex": f"^{re.escape(organization)}$", "$options": "i"}
+    return [serialize(doc) for doc in db.clients.find(query).sort("name")]
 
 
 @router.get("/{client_id}")

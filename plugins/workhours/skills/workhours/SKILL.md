@@ -28,11 +28,16 @@ irm https://raw.githubusercontent.com/gifflet/workhours-calendar/main/install.ps
 ## Data model
 
 ```
-Client (name)
+Client (name, organization?)
   └── Project (name, client_id)
         └── Task (title, project_id, status: open|done)
               └── Time entry (date, hours, notes)
 ```
+
+A client may record an `organization`: the name of the organization providing
+the service to that client (e.g. the consultancy the user works through). Set it
+with `create_client` or later with `update_client`; filter with
+`list_clients(organization=...)` (case-insensitive).
 
 A time entry always belongs to a project and client (denormalized automatically).
 Attaching it to a task is optional but preferred — task-level reports only see
@@ -64,6 +69,8 @@ entries logged with a `task_id`.
 | "what did I work on <day>?" | `daily_report` |
 | "list/fix/remove an entry" | `list_entries`, `update_entry`, `delete_entry` |
 | "mark task as done" | `update_task_status` |
+| "which clients does org X serve?" | `list_clients` with `organization` filter |
+| "set/change a client's organization" | `update_client` |
 
 ## Typical flow — "Log 2.5 hours yesterday on the CI pipeline task for ACME's ERP project"
 
@@ -80,3 +87,7 @@ entries logged with a `task_id`.
 - When presenting reports, show names (already included), not ids.
 - For a custom date range, use `list_entries(date_from=..., date_to=...)` and
   aggregate the `hours` fields yourself.
+- For hours per organization ("how many hours through org X?"), call
+  `list_clients(organization=...)` to get its client ids, then sum the matching
+  `by_client` rows of `monthly_report` (or filter it by `client_id` when the
+  organization serves a single client).
