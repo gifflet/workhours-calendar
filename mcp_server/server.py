@@ -33,15 +33,33 @@ def _request(method: str, path: str, **kwargs) -> dict | list:
 # ---------------------------------------------------------------- clients
 
 @mcp.tool()
-def create_client(name: str, notes: str | None = None) -> dict | list:
-    """Create a client (customer) to group projects under."""
-    return _request("POST", "/clients", json={"name": name, "notes": notes})
+def create_client(name: str, organization: str | None = None, notes: str | None = None) -> dict | list:
+    """Create a client (customer) to group projects under.
+
+    organization is the name of the organization providing the service to this client.
+    """
+    return _request("POST", "/clients", json={"name": name, "organization": organization, "notes": notes})
 
 
 @mcp.tool()
-def list_clients() -> dict | list:
-    """List all clients with their ids."""
-    return _request("GET", "/clients")
+def list_clients(organization: str | None = None) -> dict | list:
+    """List all clients with their ids, optionally filtered by organization (case-insensitive)."""
+    params = {"organization": organization} if organization else None
+    return _request("GET", "/clients", params=params)
+
+
+@mcp.tool()
+def update_client(
+    client_id: str,
+    name: str | None = None,
+    organization: str | None = None,
+    notes: str | None = None,
+) -> dict | list:
+    """Update a client's name, organization and/or notes. Use list_clients to find the client_id."""
+    payload = {
+        k: v for k, v in {"name": name, "organization": organization, "notes": notes}.items() if v is not None
+    }
+    return _request("PATCH", f"/clients/{client_id}", json=payload)
 
 
 # ---------------------------------------------------------------- projects

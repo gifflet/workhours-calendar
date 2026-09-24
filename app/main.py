@@ -23,7 +23,7 @@ app = FastAPI(
         "Track worked hours by client, project and task. "
         "Monthly, daily and per-task reports help you see where the time went."
     ),
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 

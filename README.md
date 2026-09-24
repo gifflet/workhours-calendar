@@ -61,7 +61,7 @@ Interactive docs at [`/docs`](http://localhost:8001/docs) (Swagger UI) and `/red
 
 | Resource | Endpoints |
 |---|---|
-| Clients | `POST/GET /clients`, `GET/PATCH/DELETE /clients/{id}` |
+| Clients | `POST/GET /clients` (filter by `organization`), `GET/PATCH/DELETE /clients/{id}` |
 | Projects | `POST/GET /projects` (filter by `client_id`), `GET/PATCH/DELETE /projects/{id}` |
 | Tasks | `POST/GET /tasks` (filter by `project_id`, `status`), `GET/PATCH/DELETE /tasks/{id}` |
 | Time entries | `POST/GET /entries` (filter by dates, task, project, client), `GET/PATCH/DELETE /entries/{id}` |
@@ -69,6 +69,9 @@ Interactive docs at [`/docs`](http://localhost:8001/docs) (Swagger UI) and `/red
 | Health | `GET /health` (includes MongoDB status) |
 
 - Dates use `YYYY-MM-DD`; hours are decimal (`1.5` = 1h30).
+- A client can record an optional `organization` — the name of the organization
+  providing the service to that client. Filter with
+  `GET /clients?organization=...` (case-insensitive).
 - A time entry needs a `task_id` **or** a `project_id`; client and project are
   denormalized into the entry automatically for fast reporting.
 - Deletes are guarded: a client/project/task with children or time entries
@@ -87,7 +90,7 @@ curl "http://localhost:8001/reports/task/<task_id>"
 
 ## Other MCP clients
 
-The MCP server exposes 14 tools over stdio (`create_client`, `log_hours`,
+The MCP server exposes 15 tools over stdio (`create_client`, `log_hours`,
 `monthly_report`, `daily_report`, `task_report`, ...). To register it outside
 the Claude Code plugin, run the published image with `-i`:
 

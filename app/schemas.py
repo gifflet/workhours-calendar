@@ -8,11 +8,17 @@ TaskStatus = Literal["open", "done"]
 
 class ClientIn(BaseModel):
     name: str = Field(min_length=1, examples=["ACME Corp"])
+    organization: str | None = Field(
+        default=None,
+        description="Organization providing the service to this client",
+        examples=["Keeggo"],
+    )
     notes: str | None = None
 
 
 class ClientUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
+    organization: str | None = None
     notes: str | None = None
 
 
